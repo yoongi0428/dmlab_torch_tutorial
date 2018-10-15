@@ -16,7 +16,7 @@ This repository is Basic Pytorch Tutorial for [Data Mining Lab.](http://dm.skku.
     - [ ] CNN
     
 ### 2. Natural Language Processing
-**(1) Sentence classification using [NAVER Movie Review Dataset](https://github.com/e9t/nsmc)**
+**(1) Sentence classification using [IMDB Dataset](https://www.imdb.com/interfaces/)**
 - Models
     - [ ] RNN
     - [ ] CNN
@@ -25,12 +25,9 @@ This repository is Basic Pytorch Tutorial for [Data Mining Lab.](http://dm.skku.
 - Models
     - [ ] Seq2Seq w/o Attention Mechanism
     - [ ] Seq2Seq w/ Attention Mechanism
-    - [ ] Transformer (Optional)
     
 ### 3. Recommender System
-**(1)Rating prediction using [MovieLens 100k, 27M](https://grouplens.org/datasets/movielens/)**
+**(1) Rating prediction using [MovieLens 100k](https://grouplens.org/datasets/movielens/)**
 - Models
-    - [ ] MF
-    - [ ] GMF
-    - [ ] MLP
-    - [ ] AE
+    - [ ] Matrix Factorization
+    - [ ] Autoencoder
