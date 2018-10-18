@@ -8,7 +8,7 @@ This repository is Basic Pytorch Tutorial for [Data Mining Lab.](http://dm.skku.
 ### 0. Pytorch Basics
 
 ### 1. Neural Network Basics
-* Basic practices using [Fashion MNIST Dataset](https://github.com/zalandoresearch/fashion-mnist)
+**(1) Basic practices using [Fashion MNIST Dataset](https://github.com/zalandoresearch/fashion-mnist)**
 * Models
     - [ ] Logistic Regression
     - [ ] MLP
@@ -31,3 +31,8 @@ This repository is Basic Pytorch Tutorial for [Data Mining Lab.](http://dm.skku.
 - Models
     - [ ] Matrix Factorization
     - [ ] Autoencoder
+    
+    
+## Update Notes
+
+* test 

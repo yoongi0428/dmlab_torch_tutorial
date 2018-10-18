@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.autograd import Variable
 
 
@@ -72,26 +73,93 @@ class Seq2seq(nn.Module):
 
         translations = []
         attentions = []
+
+        tar = torch.ones(batch, 1, dtype=torch.long) * SOS
+        tar = tar.cuda()
+        for i in range(maxlen):
+            # tar_inp : batch, cur_len, embedding
+            tar_inp = self.tar_emb(tar)
+
+            # decoded : batch, cur_len, embedding
+            decoded, hidden = self.decoder(tar_inp, hidden)
+
+            attn = None
+            if self.attn:
+                decoded, attn = self.attention(encoded, decoded)
+
+            # decoded : batch, cur_len, output_dim
+            out = self.out_proj(decoded)
+
+            # pred : batch, cur_len, 1
+            pred = torch.argmax(out, -1)
+            pred = pred[:, -1].unsqueeze(1)
+
+            tar = torch.cat((tar, pred), 1)
+
+        return tar[:, 1:], attentions
+
+
+
+
+        # for b in range(batch):
+        #     trans = []
+        #     attn = []
+        #     tar = torch.ones(1, 1, dtype=torch.long) * SOS
+        #     cur_enc = encoded[b, :, :].unsqueeze(0)
+        #     cur_hidden = tuple([h[:, 0, :].unsqueeze(1).contiguous() for h in hidden])
+        #     for i in range(maxlen):
+        #         pred, cur_hidden, one_attn = self.translate_one(cur_enc, tar.cuda(), cur_hidden)
+        #
+        #         if pred == EOS:
+        #             break
+        #
+        #         trans.append(pred.item())
+        #         attn.append(one_attn)
+        #         tar = pred
+        #
+        #     translations.append(trans)
+        #     attentions.append(attn)
+        #
+        # return translations, attentions
+
+    def translate_batch(self, src, maxlen=50, SOS=0, EOS=1):
+        # Greedy translate
+        batch, src_seq = src.shape
+        src_emb = self.src_emb(src)
+
+        encoded, hidden = self.encoder(src_emb)
+
+        translations = []
+        attentions = []
+
+        tar = torch.ones(1, 1, dtype=torch.long) * SOS
+        tar = tar.cuda()
+        attentions = torch.zeros(batch, maxlen, maxlen)
         for b in range(batch):
-            trans = []
-            attn = []
-            tar = torch.ones(1, 1, dtype=torch.long) * SOS
-            cur_enc = encoded[b, :, :].unsqueeze(0)
-            cur_hidden = tuple([h[:, 0, :].unsqueeze(1).contiguous() for h in hidden])
+            cur_encoded = encoded[b, :, :].unsqueeze(0)
+            cur_hidden = (hidden[0][:, b, :].unsqueeze(1), hidden[1][:, b, :].unsqueeze(1))
             for i in range(maxlen):
-                pred, cur_hidden, one_attn = self.translate_one(cur_enc, tar.cuda(), cur_hidden)
+                # tar_inp : batch, cur_len, embedding
+                tar_inp = self.tar_emb(tar)
 
-                if pred == EOS:
-                    break
+                # decoded : batch, cur_len, embedding
+                decoded, cur_hidden = self.decoder(tar_inp, cur_hidden)
 
-                trans.append(pred.item())
-                attn.append(one_attn)
-                tar = pred
+                attn = None
+                if self.attn:
+                    decoded, attn = self.attention(cur_encoded, decoded)
+                    attentions[b, :, :] += attn
 
-            translations.append(trans)
-            attentions.append(attn)
+                # decoded : batch, cur_len, output_dim
+                out = self.out_proj(decoded)
 
-        return translations, attentions
+                # pred : batch, cur_len, 1
+                pred = torch.argmax(out, -1)
+                pred = pred[:, -1].unsqueeze(1)
+
+                tar = torch.cat((tar, pred), 1)
+
+        return tar[:, 1:], attentions
 
     def translate_one(self, enc, tar_inp_idx, hidden):
         tar_inp = self.tar_emb(tar_inp_idx)
@@ -190,4 +258,4 @@ class Attention(nn.Module):
         # Output Proj
         attn_hidden = torch.cat((ctx, dec), 2)
 
-        return self.proj(attn_hidden), score
+        return F.relu(self.proj(attn_hidden)), score

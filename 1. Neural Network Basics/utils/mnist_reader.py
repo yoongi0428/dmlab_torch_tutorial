@@ -26,3 +26,9 @@ def load_mnist(path, kind='train'):
                                offset=16).reshape(len(labels), 784)
 
     return torch.FloatTensor(images), torch.LongTensor(labels)
+
+def shuffle(x, y):
+    data_len = len(x)
+    perm = np.random.permutation(data_len)
+
+    return x[perm, :], y[perm]

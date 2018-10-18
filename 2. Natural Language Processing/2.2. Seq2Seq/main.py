@@ -15,11 +15,11 @@ def batch_loader(data, n=1):
 # Hyperparameters
 
 # - General
-embedding = 256
+embedding = 32
 maxlen = 30
 
 # - Seq2seq
-rnn_hidden = 128
+rnn_hidden = 256
 num_layers = 1
 bi = True
 attention = True
@@ -27,12 +27,13 @@ attn_type = 'general'   # dot, general, concat
 attn_dim = 64  # when concat
 
 # - Training
-epochs = 3
+epochs = 20
 batch = 256
-lr = 0.0005
+lr = 0.005
 cuda = True
 
-src_train_sent, tar_train_sent = load_data('data', train=True, small=True)
+# Load Data and Build dictionaries
+src_train_sent, tar_train_sent = load_data('data/', train=True, small=True)
 src_dict, src_cand = load_vocab(src_train_sent)
 tar_dict, tar_cand = load_vocab(tar_train_sent)
 src_vocab_size = len(src_dict)
@@ -40,12 +41,11 @@ tar_vocab_size = len(tar_dict)
 
 src_train, tar_train = preprocess(src_train_sent, tar_train_sent, src_dict, tar_dict, maxlen)
 
-# Modeling
-
+# Build Seq2Seq Model & Loss & Optimizer
 model = Seq2seq(embedding, rnn_hidden, num_layers, src_vocab_size, tar_vocab_size, bi, attention, attn_type, attn_dim)
 
-# criterion = nn.CrossEntropyLoss(ignore_index=3)
-criterion = nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss(ignore_index=3)
+# criterion = nn.CrossEntropyLoss()
 optim = torch.optim.Adam(model.parameters(), lr)
 
 if cuda:
@@ -55,19 +55,35 @@ if cuda:
 
 # Training
 total_batch = np.ceil(len(src_train)/batch)
+
+# Make the model be in training mode (It's not a training function!)
+# It is crucial when you use module such as 'Dropout' or 'BatchNorm',
+# which behave different at training and testing
 model.train()
 for epoch in range(1, epochs + 1):
     loss = 0.0
     for i, (batch_src, batch_tar) in enumerate(batch_loader((src_train, tar_train), batch)):
+        # 1 ~ (N-1) as decoder input
+        # 2 ~ N as expected output
+        batch_tar_inp = batch_tar[:, :-1]
+        batch_tar = batch_tar[:, 1:]
+
+        # Clear gradient values
         optim.zero_grad()
 
-        out, score = model(batch_src, batch_tar)
+        # Output (Logits and Attention scores)
+        out, score = model(batch_src, batch_tar_inp)
 
-        l = criterion(out.view(-1, tar_vocab_size), batch_tar.view(-1))
+        # Cross Entropy Loss
+        l = criterion(out.view(-1, tar_vocab_size), batch_tar.contiguous().view(-1))
+
+        # Compute gradients and pass
         l.backward()
 
+        # Update Weights
         optim.step()
 
+        # Save loss
         loss += l
 
         if i % 50 == 0:
@@ -88,8 +104,9 @@ attentions = []
 model.eval()
 for i, (batch_src, batch_tar) in enumerate(batch_loader((src_test, tar_test), 5)):
     trans_sent, attn = model.translate(batch_src, maxlen=maxlen)
+    # trans_sent, attn = model.translate_batch(batch_src, maxlen=maxlen)
 
-    translate += trans_sent
+    translate += list(trans_sent.cpu().numpy())
     attentions.append(attn)
 
     if i >= 10:

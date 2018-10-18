@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from utils.mnist_reader import load_mnist
+from utils.mnist_reader import load_mnist, shuffle
+import matplotlib.pyplot as plt
 
 def batch_loader(data, n=1):
     x = data[0]
@@ -12,17 +13,17 @@ def batch_loader(data, n=1):
         yield x[i: min(data_len, i + n), :], y[i: min(data_len, i + n)]
 
 """
-0 : T-shirt/top
-1 : Trouser
-2 : Pullover
-3 : Dress
-4 : Coat
-5 : Sandal
-6 : Shirt
-7 : Sneaker
-8 : Bag
+[Fahsion MNIST Labels]
+0 : T-shirt/top 1 : Trouser 2 : Pullover
+3 : Dress       4 : Coat    5 : Sandal
+6 : Shirt       7 : Sneaker 8 : Bag     
 9 : Ankle boot
 """
+label_to_name = {
+    0: 'T-shirt/top', 1: 'Trouser', 2: 'Pullover',
+    3: 'Dress', 4: 'Coat', 5: 'Sandal', 6: 'Shirt',
+    7: 'Sneaker', 8: 'Bag', 9: 'Ankel boot'
+}
 
 # Hyperparameter
 data_path = 'data/'
@@ -46,6 +47,7 @@ class MLP(nn.Module):
         self.fc2 = nn.Linear(hidden_dim, output_dim)
 
         self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         out = self.fc1(x)
@@ -84,7 +86,8 @@ for epoch in range(1, epochs + 1):
 
     print("[Epoch %3d] Loss : %.4f" % (epoch, loss))
 
-print('[MLP Test Start]')
+print('\n\n[MLP Test Start]')
+test_x, test_y = shuffle(test_x, test_y)
 pred = []
 for (batch_x, _) in batch_loader((test_x, test_y), batch):
     out = model(batch_x)
@@ -95,7 +98,29 @@ pred = np.concatenate(pred)
 num_correct = len(np.where(pred == test_y)[0])
 accuracy = num_correct / test_num
 
-print('Accuracy = %.4f\n\n' % accuracy)
+print('Accuracy = %.4f (%d / %d)\n\n' % (accuracy, num_correct, test_num))
 
+samples = test_x[:9, :].reshape(9, 28, 28).cpu().numpy()
+pred = list(pred[:9])
+ans = list(test_y[:9].cpu().numpy())
 
-print('end')
+fig, ax = plt.subplots(3, 3, figsize=(10, 10))
+
+for i in range(9):
+    row = i // 3
+    col = i % 3
+    cur_ax = ax[row, col]
+    cur_ax.imshow(samples[i, :, :])
+    cur_ax.axes.get_xaxis().set_visible(False)
+    cur_ax.axes.get_yaxis().set_visible(False)
+
+    ans_text = 'Truth: %-11s' % label_to_name[ans[i]]
+    pred_text = 'Pred: %11s' % label_to_name[pred[i]]
+
+    cur_ax.text(0.3, -0.1, ans_text, fontsize=8, horizontalalignment='center',
+                verticalalignment='center', transform=cur_ax.transAxes,
+                color='blue')
+    cur_ax.text(0.8, -0.1, pred_text, fontsize=8, horizontalalignment='center',
+                verticalalignment='center', transform=cur_ax.transAxes,
+                color='red')
+plt.show()
