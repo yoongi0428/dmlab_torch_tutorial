@@ -103,7 +103,7 @@ def preprocess(src, tar, src_dict, tar_dict, maxlen, shuffle=True):
 
 
         src_idx = convert_str_to_idx(src_tokens, src_dict, maxlen)
-        tar_idx = convert_str_to_idx(tar_tokens, tar_dict, maxlen)
+        tar_idx = convert_str_to_idx(tar_tokens, tar_dict, maxlen + 1)
 
         src_s.append(src_idx)
         tar_s.append(tar_idx)

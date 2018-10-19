@@ -86,6 +86,7 @@ class Seq2seq(nn.Module):
             attn = None
             if self.attn:
                 decoded, attn = self.attention(encoded, decoded)
+                attentions.append(attn[:, -1].unsqueeze(1))
 
             # decoded : batch, cur_len, output_dim
             out = self.out_proj(decoded)
@@ -96,7 +97,7 @@ class Seq2seq(nn.Module):
 
             tar = torch.cat((tar, pred), 1)
 
-        return tar[:, 1:], attentions
+        return tar[:, 1:], torch.cat(attentions, 1).cpu().detach().numpy()
 
 
 
@@ -249,8 +250,8 @@ class Attention(nn.Module):
             # affine = torch.bmm(affine, self.weight_2).view(batch, tar_seq, src_seq)
 
         # Softmax
-        # score = self.sm(affine)
-        score = self.log_softmax(affine)
+        score = self.sm(affine)
+        # score = self.log_softmax(affine)
 
         # Get Context Vectors
         ctx = torch.bmm(score, enc)

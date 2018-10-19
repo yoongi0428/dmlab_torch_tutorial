@@ -2,10 +2,13 @@ import math
 import torch
 import numpy as np
 
-def evaluate(logit, ans, metrics=(True, True, True), nums=5, implicit=False):
+def evaluate(logit, ans, mask, metrics=(True, True, True), nums=5, implicit=False):
     do_prec, do_recall, do_ndcg = metrics
+    mask = mask.cpu()
 
     if implicit:
+        logit = logit.masked_fill(mask, float('-inf'))
+
         precs = []
         recalls = []
         ndcgs = []
@@ -24,7 +27,9 @@ def evaluate(logit, ans, metrics=(True, True, True), nums=5, implicit=False):
                 ndcgs.append(ndcg_n(pred, ans, n))
         result = precs, recalls, ndcgs
     else:
-        result = np.mean(np.square(logit - ans).numpy())
+        squared_err = np.square(logit - ans)
+        masked_err = squared_err.masked_fill(mask, 0)
+        result = np.mean(masked_err.numpy())
     return result
 
 def prec_n(pred, ans, n):

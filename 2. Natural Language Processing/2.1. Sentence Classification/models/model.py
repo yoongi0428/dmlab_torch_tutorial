@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# RNN Model
 class RNN(nn.Module):
     def __init__(self, emb_dim, rnn_hidden, num_layers, bi, output_dim, vocab_size):
         super(RNN, self).__init__()
@@ -30,6 +31,7 @@ class RNN(nn.Module):
 
     def forward(self, input):
         # Embedding lookup
+        # (batch, seq_len) => (batch, seq_len, embedding)
         input = self.embedding(input)
 
         # Run RNN and get last hidden state
@@ -56,42 +58,58 @@ class CNN(nn.Module):
         # Embedding matrix + Lookup operation
         self.embedding = nn.Embedding(vocab_size, self.emb_dim)
 
-        """
-        nn.ModuleList : Literally, List of Modules.
-        
-        """
+        # - nn.ModuleList : Literally, a list of Modules.
+        # However, it is different from python list.
+        # "model.parameters()" gathers parameters of layers in nn.ModuleList, while doesn't those in python list.
+        # Weights in python list of modules will not be updated during training.
+        # - For simplicity, we added padding of (size//2, 0) to keep input shape same
         self.convs = nn.ModuleList([
             nn.Conv2d(in_channels=1, out_channels=num, kernel_size=(size, emb_dim), padding=(size//2, 0))
             for size, num in zip(filters, num_filters)
         ])
 
+        # For natural language, we apply max-pooling over time
+        # That is, when the output of convolution is (seq_len, features),
+        # we max-pool most significant feature per word by applying (1, features) max-pool.
         self.maxpool = nn.ModuleList([
             nn.MaxPool2d((1, num), stride=1)
             for num in num_filters
         ])
 
+        # Output layer
         self.out_proj = nn.Linear(maxlen * len(filters), output_dim)
 
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, input):
+        # Embedding lookup
         input = self.embedding(input)
+
+        # Add extra dimension for convolution
         input = input.unsqueeze(1)
 
+        # Gather convolution outputs
         conv_out = []
         for conv, mp in zip(self.convs, self.maxpool):
+            # Convolution + ReLU
             out = self.relu(conv(input))
+
+            # (batch, features, seq, 1) => (batch, 1, seq, features)
             out = out.permute(0, 3, 2, 1)
 
+            # mp => (batch, 1, seq, 1)
+            # "squeeze" delete all axis of 1 dimensions
+            # After squeeze =? (batch, seq)
             pooled = mp(out).squeeze()
 
             conv_out.append(pooled)
 
-        # concat
+        # Concat all outputs
+        # (batch, seq_len * num of filters)
         conv_out = torch.cat(conv_out, 1)
 
-        # proj
+        # Output layer
         logit = self.out_proj(conv_out)
 
         return self.sigmoid(logit)

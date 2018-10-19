@@ -16,10 +16,10 @@ def batch_loader(data, n=1):
 
 # - General
 data_path = 'data/ratings_sm.csv'
-implicit = False
+implicit = False    # Implicit feedback (0 or 1) if True, Explicit feedback (0~5 ratings) otherwise
 
 # - Training
-epochs = 1000
+epochs = 100
 lr = 0.01
 cuda = True
 
@@ -31,54 +31,69 @@ train_matrix = build_matrix(train[0], train[1], train[2], num_users, num_items)
 hidden = 256
 
 # - AE
-hidden_dims = 128   # [128, 64, 32]
+hidden_dims = 128   # can be a list. e.g. [128, 64, 32]
 
 
 # Model
 model_type = 'MF'    # MF or AE
+
+# Build model
 model = MF(num_users, num_items, hidden, implicit) if model_type == 'MF' else AE(num_users, num_items, hidden_dims, implicit)
-optim = torch.optim.Adam(model.parameters(), lr)
 
-
+# Loss function & Optimizer
 if model_type == 'MF':
     criterion = nn.MSELoss(size_average=False)  # size_average=False : Sum Square Error
 elif model_type == 'AE':
     criterion = nn.BCELoss() if implicit else nn.MSELoss()
 else:
     raise NotImplementedError
+optim = torch.optim.Adam(model.parameters(), lr)
 
 if cuda:
     model.cuda()
     train_matrix = train_matrix.cuda()
 
-# Train
+# Training procedure
 for epoch in range(1, epochs + 1):
+    # Clear gradients
     optim.zero_grad()
 
+    # Compute logit
     logit = model(train_matrix)
 
+    # Compute loss
     loss = criterion(logit, train_matrix)
-    loss.backward()
 
+    # Compute gradients and update weights
+    loss.backward()
     optim.step()
 
     print("[Epoch %3d] Loss : %.4f" % (epoch, loss))
 
 
 
-# Test
+# Evaluation
+
+# Choose evaluation metrics for implicit (top-k)
 do_prec, do_recall, do_ndcg = True, True, True
 test_nums = [1, 5, 10]
 test_matrix = build_matrix(test[0], test[1], test[2], num_users, num_items)
 
+# Prediction
 logit = model(train_matrix)
-if implicit:
-    mask = train_matrix > 0
-    logit = logit.masked_fill(mask, float('-inf'))
+
+# Mask to ignore train data
+# Same shape with full matrix
+# 1 if training data, 0 otherwise
+mask = train_matrix > 0
 
 if cuda:
     logit = logit.cpu().detach()
 
-result = evaluate(logit, test_matrix, metrics=(do_prec, do_recall, do_ndcg), nums=test_nums, implicit=implicit)
+# Evaluate prediction
+# Explicit => MSE
+# Implicit => precision, recall, ndcg
+result = evaluate(logit, test_matrix, mask, metrics=(do_prec, do_recall, do_ndcg), nums=test_nums, implicit=implicit)
 
+# Print result
 print_result(result, test_nums, implicit)

@@ -45,6 +45,7 @@ bi = True
 
 filters = [3, 5, 7]
 num_filters = [128, 128, 128]
+assert len(filters) == len(num_filters)
 
 # - Training
 epochs = 10
@@ -54,11 +55,13 @@ cuda = True
 
 model = "cnn"   # 'cnn' or 'rnn'
 
+# Load vocabulary and make dictionary
 vocabs = load_vocab('data/imdb/imdb.vocab')
 w2i = {w: i for i, w in enumerate(vocabs)}
 i2w = {i: w for i, w in enumerate(vocabs)}
 vocab_size = len(vocabs)
 
+# Load Data
 train_x, train_y = load_data('data/', train=True)
 train_x, train_y = preprocess(train_x, train_y, w2i, maxlen)
 
@@ -66,6 +69,7 @@ train_x, train_y = preprocess(train_x, train_y, w2i, maxlen)
 model = RNN(embedding, rnn_hidden, num_layers, bi, output_dim, vocab_size) \
     if model == 'rnn' else CNN(filters, num_filters, maxlen, vocab_size, embedding, output_dim)
 
+# Loss function & Optimizer
 criterion = nn.BCELoss()
 optim = torch.optim.Adam(model.parameters(), lr)
 
@@ -74,8 +78,9 @@ if cuda:
     train_x = train_x.cuda()
     train_y = train_y.cuda()
 
-# Train
-
+# Training procedure
+# model.train() makes model be in training mode. (It is not a real training function)
+# It is crucial to modules such as batch norm or dropout, which acts different when train or test
 model.train()
 for epoch in range(1, epochs + 1):
     loss = 0.0
