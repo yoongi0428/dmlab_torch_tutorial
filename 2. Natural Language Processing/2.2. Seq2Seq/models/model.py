@@ -97,7 +97,12 @@ class Seq2seq(nn.Module):
 
             tar = torch.cat((tar, pred), 1)
 
-        return tar[:, 1:], torch.cat(attentions, 1).cpu().detach().numpy()
+        if self.attn:
+            ret = tar[:, 1:], torch.cat(attentions, 1).cpu().detach().numpy()
+        else:
+            ret = tar[:, 1:], None
+
+        return ret
 
 
 
@@ -216,7 +221,6 @@ class Attention(nn.Module):
             raise NotImplementedError
 
         self.proj = nn.Linear(self.hidden_dim * 2, self.hidden_dim)
-        self.sigmoid = nn.Sigmoid()
         self.log_softmax = nn.LogSoftmax(-1)
         self.sm = nn.Softmax(-1)
 

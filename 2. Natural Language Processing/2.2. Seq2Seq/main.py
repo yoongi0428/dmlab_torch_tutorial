@@ -17,20 +17,20 @@ def batch_loader(data, n=1):
 
 # - General
 embedding = 100
-maxlen = 20
+maxlen = 10
 
 # - Seq2seq
 rnn_hidden = 256
 num_layers = 2
 bi = True
 attention = True
-attn_type = 'general'   # dot, general, concat
-attn_dim = 64  # when concat
+attn_type = 'dot'   # dot, general, concat
+attn_dim = 128  # when concat
 
 # - Training
-epochs = 0
-batch = 256
-lr = 0.005
+epochs = 5
+batch = 32
+lr = 0.001
 cuda = True
 
 # Load Data and Build dictionaries
@@ -105,7 +105,7 @@ attentions = []
 
 model.eval()
 for i, (batch_src, batch_tar) in enumerate(batch_loader((src_test, tar_test), 5)):
-# for i, (batch_src, batch_tar) in enumerate(batch_loader((src_train, tar_train), 5)):
+# for i, (batch_src, batch_tar) in enumerate(batch_loader((src_train, tar_train), 5)):  # For debug
     trans_sent, attn = model.translate(batch_src, maxlen=maxlen)
 
     translate += list(trans_sent.cpu().numpy())
@@ -114,7 +114,8 @@ for i, (batch_src, batch_tar) in enumerate(batch_loader((src_test, tar_test), 5)
 
     if i >= 10:
         break
-attentions = np.concatenate(attentions)
+if attention:
+    attentions = np.concatenate(attentions)
 
 tar_re_dict = {tar_dict[w]: w for w in tar_dict}
 src_re_dict = {src_dict[w]: w for w in src_dict}
@@ -134,6 +135,11 @@ print('===========Translation Eval============')
 for i in range(10):
     raw_source = list(src_test[i].cpu().numpy())
     raw_reference = list(tar_test[i].cpu().numpy())
+
+    # For debug
+    # raw_source = list(src_train[i].cpu().numpy())
+    # raw_reference = list(tar_train[i].cpu().numpy())
+
     raw_trans = translate[i]
 
     source, src_w_list = join_str(raw_source, src_re_dict)
@@ -144,22 +150,24 @@ for i in range(10):
     print('Reference : ', reference)
     print('Translation : %s\n' % translated)
 
-    att = attentions[i]
-    fig, ax = plt.subplots(figsize=(15, 15))
-    im = ax.imshow(att)
+    if attention:
+        # att.transpose : src, tar
+        att = np.transpose(attentions[i], (1, 0))
+        fig, ax = plt.subplots(figsize=(8, 8))
+        im = ax.imshow(att)
 
-    ax.set_xticks(np.arange(maxlen))
-    ax.set_yticks(np.arange(maxlen))
+        ax.set_xticks(np.arange(maxlen))
+        ax.set_yticks(np.arange(maxlen))
 
-    ax.set_xticklabels(ref_w_list)
-    ax.set_yticklabels(src_w_list)
+        ax.set_xticklabels(ref_w_list)
+        ax.set_yticklabels(src_w_list)
 
-    for i in range(maxlen):
-        for j in range(maxlen):
-            text = ax.text(j, i, "%.1f" % att[i, j],
-                           ha="center", va="center", color="w")
+        for i in range(maxlen):
+            for j in range(maxlen):
+                text = ax.text(j, i, "%.1f" % att[i, j],
+                               ha="center", va="center", color="w")
 
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
-    plt.show()
+        plt.show()
 
