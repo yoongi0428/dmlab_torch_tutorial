@@ -132,6 +132,15 @@ def convert_str_to_idx(s, w2i, maxlen):
     else:
         return str_idx + [3] * (maxlen - str_len)
 
+def truncate_after_val(sentences, val):
+    ret = []
+    for s in sentences:
+        try:
+            idx = s.index(val)
+            ret.append(s[:idx])
+        except:
+            ret.append(s)
+    return ret
 
 
 if __name__ == '__main__':

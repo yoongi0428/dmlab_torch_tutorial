@@ -43,4 +43,5 @@ If you have any comment or suggest, you're always welcome.
     
 ## Update Notes
 
-- 2018, Oct, 20 : ver 0.9 updated. NLP/Seq2Seq evaluation result error exists. (Soon be resolved)
+- 2018, Oct, 20 : ver 0.8 updated. NLP/Seq2Seq evaluation result error exists. (Soon be resolved)
+- 2019, Mar, 07 : ver 0.9 updated. NLP/Seq2Seq error resolved. (Code clearance soon be done)
